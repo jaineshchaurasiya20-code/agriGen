@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kisaan Mitra: AI Crop Health Assistant</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap" rel="stylesheet">
+    <style>
+        /* Base styles for a modern dark-mode feel */
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background-color: #0a0a0a; /* Dark background */
+            color: #f3f4f6;
+            min-height: 100vh;
+        }
+
+        /* Custom spinner animation */
+        .spinner {
+            border-top-color: #f3f4f6;
+            -webkit-animation: spin 1s linear infinite;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Dynamic Gradient for Visual Appeal */
+        .dynamic-header-gradient {
+            background-image: linear-gradient(90deg, #60a5fa, #34d399, #fde047);
+            background-size: 200% auto;
+            animation: text-gradient-shift 4s ease infinite alternate;
+        }
+
+        @keyframes text-gradient-shift {
+            0% { background-position: 0% center; }
+            100% { background-position: 100% center; }
+        }
+
+        /* High contrast cards for readability */
+        .data-card {
+            background-color: #1f2937;
+            border: 1px solid #374151;
+            transition: all 0.3s ease-out;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08);
+        }
+
+        .data-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 15px rgba(34, 197, 94, 0.2);
+        }
+
+        /* Chat bubbles */
+        .chat-bubble-user { background-color: #3b82f6; color: white; border-radius: 12px 12px 0 12px; }
+        .chat-bubble-ai { background-color: #0f172a; color: #a3e635; border: 1px solid #4ade80; border-radius: 12px 12px 12px 0; }
+        #chat-log { max-height: 400px; overflow-y: auto; scroll-behavior: smooth; }
+        .status-logged-out { color: #f87171; } /* Red */
+        .status-logged-in { color: #4ade80; } /* Green */
+        
+        /* Input and Textarea Focus */
+        input:focus, textarea:focus {
+            border-color: #34d399 !important;
+            box-shadow: 0 0 0 2px rgba(52, 211, 153, 0.5) !important;
+        }
+    </style>
+</head>
+<body class="p-6">
+
+    <div class="max-w-4xl mx-auto bg-gray-900 shadow-2xl rounded-3xl overflow-hidden p-8 border-t-8 border-green-500 data-card">
+        <h1 class="text-5xl font-extrabold mb-2 dynamic-header-gradient text-transparent bg-clip-text">🌿 Kisaan Mitra AI</h1>
+        <p class="text-gray-400 mb-4">Apni fasal ki beemari pehchano aur kheti ke liye smart advice paao.</p>
+
+        <div class="flex justify-between items-center mb-6 p-3 bg-gray-800 rounded-lg border border-gray-700 data-card">
+            <span class="text-sm font-semibold text-gray-300">Status: <span id="auth-status" class="status-logged-out">Logged Out</span></span>
+            <div id="auth-buttons" class="space-x-3">
+                <button id="login-btn" class="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-500 transition duration-200">Login</button>
+                <button id="signup-btn" class="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-500 transition duration-200">Sign Up</button>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div class="p-6 rounded-xl data-card">
+                <h2 class="text-2xl font-bold text-green-400 mb-4">🔬 Fasal Jaanch (Prediction)</h2>
+                
+                <form id="prediction-form" enctype="multipart/form-data">
+                    <label for="leaf-image" class="block text-sm font-medium text-gray-300 mb-2">Patti ki Photo Upload Karein (Login Zaroori):</label>
+                    <input type="file" id="leaf-image" name="file" accept="image/*" class="w-full p-2 border border-gray-600 bg-gray-800 rounded-lg mb-4 text-gray-300" required>
+                    
+                    <div id="image-preview-container" class="mb-4 hidden">
+                        <p class="text-sm font-semibold text-gray-400 mb-2">Preview:</p>
+                        <img id="image-preview" class="max-h-40 w-full object-contain rounded-lg border-2 border-green-500 mx-auto" alt="Leaf Preview">
+                    </div>
+
+                    <button type="submit" id="predict-btn" class="w-full bg-green-600 text-white py-3 rounded-xl font-semibold hover:bg-green-500 transition duration-200 disabled:bg-gray-700 disabled:text-gray-400 flex items-center justify-center space-x-2">
+                        <span>Predict Disease & Get Remedy</span>
+                        <div id="predict-spinner" class="spinner h-5 w-5 border-2 border-white border-t-green-600 rounded-full hidden"></div>
+                    </button>
+                </form>
+
+                <div id="prediction-results" class="mt-6 p-4 bg-gray-800 border border-green-500 rounded-lg shadow-md hidden">
+                    <p class="text-lg font-bold text-green-400">Predicted Disease: <span id="disease-output" class="text-red-400"></span></p>
+                    <p class="text-sm text-gray-400">Confidence: <span id="confidence-output"></span></p>
+                    <p class="mt-3 text-sm font-medium text-gray-300">Remedy: <span id="remedy-output" class="font-normal text-gray-400"></span></p>
+                </div>
+            </div>
+
+            <div class="p-6 rounded-xl data-card">
+                <h2 class="text-2xl font-bold text-blue-400 mb-4">💬 Tech Assistant (Farming Focus)</h2>
+                
+                <div id="chat-log" class="mb-4 p-3 bg-gray-800 border border-blue-500 rounded-lg space-y-3">
+                    <div class="flex justify-start">
+                        <div class="chat-bubble-ai p-3 max-w-xs text-sm">Hello! Login karein aur phir fasal ki photo upload karke prediction shuru karein. Aap bina login ke bhi general sawal pooch sakte hain.</div>
+                    </div>
+                </div>
+
+                <form id="chat-form">
+                    <div class="flex space-x-2">
+                        <input type="text" id="chat-input" placeholder="Apna sawal yahan type karein..." class="flex-grow p-2 border border-gray-600 bg-gray-700 rounded-lg focus:ring-blue-500 text-gray-300" required>
+                        <button type="submit" id="chat-send-btn" class="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-500 transition duration-200 disabled:bg-gray-700 disabled:text-gray-400">Send</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div id="history-display" class="w-full mt-10 p-6 bg-gray-800 rounded-xl shadow-2xl hidden data-card">
+            <div class="flex justify-between items-center border-b pb-2 mb-4 border-gray-700">
+                <h3 class="text-2xl font-bold text-gray-300">Your Prediction History</h3>
+                <button id="clear-history-btn" class="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-500 transition duration-200 disabled:bg-gray-700 disabled:text-gray-400">Clear History</button>
+            </div>
+            <table class="min-w-full divide-y divide-gray-700">
+                <thead class="bg-gray-700">
+                    <tr>
+                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Date</th>
+                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Idea Summary</th>
+                        <th class="px-4 py-2 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Score</th>
+                    </tr>
+                </thead>
+                <tbody id="history-table-body" class="divide-y divide-gray-700 text-gray-200">
+                    <tr><td colspan="3" class="text-center py-4 text-gray-500">No history loaded.</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+
+    <div id="auth-modal" class="fixed inset-0 z-50 hidden bg-black/70 backdrop-blur-sm flex items-center justify-center">
+        <div class="bg-gray-900 p-8 rounded-xl w-96 shadow-2xl border-t-4 border-green-600 data-card">
+            <h3 id="form-title" class="text-2xl font-bold text-gray-300 mb-6">Sign Up</h3>
+            <form id="auth-form" class="space-y-4">
+                <input type="email" id="auth-email" placeholder="Email" class="w-full p-3 border border-gray-600 bg-gray-800 rounded text-gray-300" required>
+                <input type="password" id="auth-password" placeholder="Password" class="w-full p-3 border border-gray-600 bg-gray-800 rounded text-gray-300" required>
+                <p id="auth-message" class="text-red-400 text-sm hidden"></p>
+                <button type="submit" id="auth-submit" class="w-full py-3 bg-green-600 text-white font-bold rounded hover:bg-green-500 transition duration-200 flex items-center justify-center space-x-2">Submit</button>
+            </form>
+            <p class="mt-4 text-sm text-gray-400 text-center cursor-pointer" id="toggle-auth-mode">Already have an account? <span class="text-blue-400 hover:underline" >Login</span></p>
+        </div>
+    </div>
+
+
+<script>
+    // Ye code aapke backend ke calls ko asynchronous aur fast rakhega.
+    const DEPLOYED_URL = "http://127.0.0.1:8000"; 
+    const PREDICT_ENDPOINT = `${DEPLOYED_URL}/predict`;
+    const CHAT_ENDPOINT = `${DEPLOYED_URL}/chat_context`;
+    const LOGIN_ENDPOINT = `${DEPLOYED_URL}/auth/login`;
+    const SIGNUP_ENDPOINT = `${DEPLOYED_URL}/auth/signup`;
+    const HISTORY_ENDPOINT = `${DEPLOYED_URL}/history`;
+    const CLEAR_HISTORY_ENDPOINT = `${DEPLOYED_URL}/history/clear`; 
+    
+    let CURRENT_USER = null;
+    let currentSessionId = 'session_' + Math.random().toString(36).substring(2, 9);
+    let currentPredictionContext = ""; 
+    
+    // UI Elements and Utilities (Same as before)
+    const predictionForm = document.getElementById('prediction-form');
+    const leafImageInput = document.getElementById('leaf-image');
+    const predictBtn = document.getElementById('predict-btn');
+    const predictSpinner = document.getElementById('predict-spinner');
+    const resultsDiv = document.getElementById('prediction-results');
+    const chatForm = document.getElementById('chat-form');
+    const chatInput = document.getElementById('chat-input');
+    const chatSendBtn = document.getElementById('chat-send-btn');
+    const chatLog = document.getElementById('chat-log');
+    const imagePreviewContainer = document.getElementById('image-preview-container');
+    const imagePreview = document.getElementById('image-preview');
+    
+    const authModal = document.getElementById('auth-modal');
+    const authForm = document.getElementById('auth-form');
+    const authEmail = document.getElementById('auth-email');
+    const authPassword = document.getElementById('auth-password');
+    const authMessage = document.getElementById('auth-message');
+    const formTitle = document.getElementById('form-title');
+    const toggleLink = document.getElementById('toggle-auth-mode');
+    const statusEl = document.getElementById('auth-status');
+    const authButtonsDiv = document.getElementById('auth-buttons');
+    const historyDisplay = document.getElementById('history-display');
+    const historyTableBody = document.getElementById('history-table-body');
+    const clearHistoryBtn = document.getElementById('clear-history-btn'); 
+    
+    const scrollToBottom = (element = chatLog) => {
+        element.scrollTop = element.scrollHeight;
+    };
+    
+    const displayMessage = (message, sender) => {
+        const msgDiv = document.createElement('div');
+        msgDiv.classList.add('flex', 'mx-1');
+        
+        if (sender === 'user') {
+            msgDiv.classList.add('justify-end');
+            msgDiv.innerHTML = `<div class="chat-bubble-user p-3 max-w-xs text-sm">${message}</div>`;
+        } else {
+            msgDiv.classList.add('justify-start');
+            msgDiv.innerHTML = `<div class="chat-bubble-ai p-3 max-w-xs text-sm whitespace-pre-wrap">${message}</div>`;
+        }
+        chatLog.appendChild(msgDiv);
+        scrollToBottom();
+    };
+
+    const getColorClass = (score) => {
+        if (score >= 80) return 'text-green-500';
+        if (score >= 40) return 'text-yellow-500';
+        return 'text-red-500';
+    };
+
+    // --- AUTH UTILS ---
+    const updateAuthStatus = (user) => {
+        if (user) {
+            CURRENT_USER = user;
+            statusEl.textContent = `Logged In | User ID: ${user.user_id}`; 
+            statusEl.classList.replace('status-logged-out', 'status-logged-in');
+            historyDisplay.classList.remove('hidden');
+            fetchHistory();
+            
+            // Show Logout button
+            authButtonsDiv.innerHTML = `<button id="logout-btn" class="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-500 transition duration-200">Logout</button>`;
+        } else {
+            CURRENT_USER = null; 
+            statusEl.textContent = 'Logged Out';
+            statusEl.classList.replace('status-logged-in', 'status-logged-out');
+            historyDisplay.classList.add('hidden');
+            
+            // Show Login/Signup buttons
+            authButtonsDiv.innerHTML = `
+                <button id="login-btn" class="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-500 transition duration-200">Login</button>
+                <button id="signup-btn" class="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-500 transition duration-200">Sign Up</button>
+            `;
+        }
+    };
+
+    const authenticatedFetch = async (endpoint, method, body = null) => {
+        if (!CURRENT_USER || !CURRENT_USER.access_token) {
+            alert('Pehle Login ya Sign Up karein.');
+            authModal.classList.remove('hidden');
+            throw new Error("Authentication Required.");
+        }
+
+        const headers = {
+            'Authorization': `Bearer ${CURRENT_USER.access_token}` 
+        };
+        if (method !== 'GET' && method !== 'DELETE' && body) { 
+            headers['Content-Type'] = 'application/json';
+        }
+        
+        const config = {
+            method: method,
+            headers: headers,
+            body: body ? (method === 'POST' || method === 'PUT' ? JSON.stringify(body) : undefined) : undefined,
+        };
+
+        const response = await fetch(endpoint, config);
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ detail: `Server error: ${response.status}` }));
+            if (response.status === 401 || response.status === 403) {
+                updateAuthStatus(null); 
+                alert("Session Expired. Please log in again.");
+            }
+            throw new Error(errorData.detail || `Server error: ${response.status}`);
+        }
+
+        if (method === 'DELETE' || response.status === 204) return {};
+        
+        return await response.json();
+    };
+
+
+    const fetchHistory = async () => {
+        if (!CURRENT_USER) return;
+        historyTableBody.innerHTML = `<tr><td colspan="3" class="text-center py-4 text-blue-400">Loading history...</td></tr>`;
+
+        try {
+            const data = await authenticatedFetch(HISTORY_ENDPOINT, 'GET');
+            
+            if (data.history.length === 0) {
+                historyTableBody.innerHTML = `<tr><td colspan="3" class="text-center py-4 text-gray-500">No prediction history found.</td></tr>`;
+                return;
+            }
+
+            historyTableBody.innerHTML = data.history.map(item => `
+                <tr class="hover:bg-gray-700 transition duration-150">
+                    <td class="px-4 py-2 text-sm text-gray-400">${item.date}</td>
+                    <td class="px-4 py-2 font-semibold text-gray-100">${item.idea}</td>
+                    <td class="px-4 py-2 text-sm ${getColorClass(item.score)} font-bold">${item.score}%</td>
+                </tr>
+            `).join('');
+
+        } catch (error) {
+            console.error("History fetch error:", error);
+            if (!error.message.includes("Authentication Required")) {
+                historyTableBody.innerHTML = `<tr><td colspan="3" class="text-center py-4 text-red-400">Error: ${error.message}</td></tr>`;
+            }
+        }
+    };
+
+    // --- EVENT LISTENERS ---
+
+    // 1. Image Preview
+    leafImageInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = (event) => {
+                imagePreview.src = event.target.result;
+                imagePreviewContainer.classList.remove('hidden');
+            };
+            reader.readAsDataURL(file);
+        } else {
+            imagePreviewContainer.classList.add('hidden');
+        }
+    });
+
+    // 2. Prediction Form Submit (Optimized for non-blocking I/O)
+    predictionForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        if (!CURRENT_USER) {
+            alert('Pehle Login karein tabhi prediction chalega.');
+            authModal.classList.remove('hidden');
+            return;
+        }
+
+        // --- Immediate UI Feedback (Fastest Part) ---
+        predictBtn.disabled = true;
+        predictSpinner.classList.remove('hidden');
+        predictBtn.querySelector('span').textContent = 'Analyzing...';
+        resultsDiv.classList.add('hidden');
+        
+        const formData = new FormData();
+        formData.append('file', leafImageInput.files[0]);
+        formData.append('session_id', currentSessionId);
+
+        try {
+            // Asynchronous fetch call (non-blocking)
+            const response = await fetch(PREDICT_ENDPOINT, {
+                method: 'POST',
+                // CRITICAL FIX: Only pass Authorization header manually for FormData
+                headers: {
+                    'Authorization': `Bearer ${CURRENT_USER.access_token}` 
+                },
+                body: formData,
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                if (response.status === 401 || response.status === 403) {
+                     updateAuthStatus(null);
+                     throw new Error("Session Expired. Please log in again.");
+                }
+                throw new Error(errorData.detail || 'Prediction failed.');
+            }
+
+            const result = await response.json();
+            
+            // --- UI Update on Success ---
+            currentPredictionContext = result.disease_name;
+            document.getElementById('disease-output').textContent = result.disease_name;
+            document.getElementById('confidence-output').textContent = result.confidence;
+            document.getElementById('remedy-output').textContent = result.remedy_suggestion;
+            resultsDiv.classList.remove('hidden');
+            
+            displayMessage(result.initial_chat_message, 'ai');
+            fetchHistory(); 
+
+        } catch (error) {
+            console.error("Prediction Error:", error);
+            if (error.message.includes("Authentication Required") || error.message.includes("Session Expired")) {
+                 alert('Login required for Prediction. Please log in.');
+            } else {
+                 alert(`Fasal Jaanch mein galti hui: ${error.message}`);
+                 displayMessage(`ERROR: Prediction fail ho gaya. ${error.message}`, 'ai');
+            }
+        } finally {
+            // Reset UI State (Final Step)
+            predictBtn.disabled = false;
+            predictSpinner.classList.add('hidden');
+            predictBtn.querySelector('span').textContent = 'Predict Disease & Get Remedy';
+        }
+    });
+
+    // 3. Chat Form Submit (Uses plain fetch - Auth not required on backend)
+    chatForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const message = chatInput.value.trim();
+        if (!message) return;
+
+        displayMessage(message, 'user');
+        chatInput.value = '';
+        
+        // --- Immediate UI Feedback (Fastest Part) ---
+        chatSendBtn.disabled = true;
+        const loadingMsg = document.createElement('div');
+        loadingMsg.id = 'ai-loading';
+        loadingMsg.classList.add('text-center', 'py-2', 'text-sm', 'italic', 'text-gray-400', 'mx-3');
+        loadingMsg.innerHTML = 'Kisaan Mitra is typing...';
+        chatLog.appendChild(loadingMsg);
+        scrollToBottom();
+
+        try {
+            // Asynchronous fetch call (non-blocking)
+            const response = await fetch(CHAT_ENDPOINT, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    session_id: currentSessionId,
+                    message: message,
+                    context: currentPredictionContext 
+                })
+            });
+            
+            const data = await response.json();
+            
+            // --- UI Update on Success ---
+            const loader = document.getElementById('ai-loading');
+            if (loader) loader.remove();
+
+            displayMessage(data.reply, 'ai');
+
+        } catch (error) {
+            const loader = document.getElementById('ai-loading');
+            if (loader) loader.remove();
+            displayMessage(`Sorry, chat service connect nahi ho paya. Error: ${error.message}`, 'ai');
+            console.error("Chat Error:", error);
+        } finally {
+            // Reset UI State
+            chatSendBtn.disabled = false;
+        }
+    });
+
+    // 4. Clear History Logic (NEW)
+    clearHistoryBtn.addEventListener('click', async () => {
+        if (!CURRENT_USER) return;
+
+        const confirmClear = confirm("Are you sure you want to clear ALL prediction history? Yeh action wapas nahi liya ja sakta.");
+        
+        if (confirmClear) {
+            // --- Immediate UI Feedback (Fastest Part) ---
+            clearHistoryBtn.disabled = true;
+            clearHistoryBtn.textContent = 'Clearing...';
+
+            try {
+                await authenticatedFetch(CLEAR_HISTORY_ENDPOINT, 'DELETE');
+                
+                // --- UI Update on Success ---
+                historyTableBody.innerHTML = `<tr><td colspan="3" class="text-center py-4 text-gray-500">History cleared. Start a new prediction!</td></tr>`;
+                alert("History successfully cleared!");
+                
+            } catch (error) {
+                console.error("Clear History Error:", error);
+                alert(`Failed to clear history: ${error.message}`);
+            } finally {
+                // Reset UI State
+                clearHistoryBtn.disabled = false;
+                clearHistoryBtn.textContent = 'Clear History';
+            }
+        }
+    });
+
+
+    // 5. Auth Buttons and Modal Logic (Unchanged - Standard Login/Logout)
+    document.body.addEventListener('click', (e) => {
+        if (e.target.id === 'login-btn' || e.target.id === 'signup-btn') {
+            const isSignup = e.target.id === 'signup-btn';
+            formTitle.textContent = isSignup ? 'Sign Up' : 'Login';
+            authModal.dataset.mode = isSignup ? 'signup' : 'login';
+            toggleLink.innerHTML = isSignup ? 'Already have an account? <span class="text-blue-600 hover:underline">Login</span>' : 'New user? <span class="text-blue-600 hover:underline">Sign Up</span>';
+            authMessage.classList.add('hidden');
+            authEmail.value = '';
+            authPassword.value = '';
+            authModal.classList.remove('hidden');
+        } else if (e.target.id === 'logout-btn') {
+            updateAuthStatus(null); 
+            currentPredictionContext = "";
+            currentSessionId = 'session_' + Math.random().toString(36).substring(2, 9);
+        }
+    });
+
+    authForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = authEmail.value;
+        const password = authPassword.value;
+        const mode = authModal.dataset.mode; 
+        const endpoint = mode === 'signup' ? SIGNUP_ENDPOINT : LOGIN_ENDPOINT;
+
+        authMessage.classList.add('hidden');
+        document.getElementById('auth-submit').disabled = true;
+        document.getElementById('auth-submit').innerHTML = `<div class="spinner h-5 w-5 border-2 border-white border-t-green-600 rounded-full"></div>`;
+
+        try {
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                authMessage.textContent = data.detail || 'Authentication failed.';
+                authMessage.classList.remove('hidden');
+                return;
+            }
+
+            authModal.classList.add('hidden');
+            updateAuthStatus(data); 
+
+        } catch (error) {
+            authMessage.textContent = 'Network or Server error occurred.';
+            authMessage.classList.remove('hidden');
+            console.error("Auth Error:", error);
+        } finally {
+            document.getElementById('auth-submit').disabled = false;
+            document.getElementById('auth-submit').innerHTML = 'Submit';
+        }
+    });
+
+    toggleLink.addEventListener('click', () => {
+        const currentMode = authModal.dataset.mode;
+        const isLogin = currentMode === 'login';
+
+        authModal.dataset.mode = isLogin ? 'signup' : 'login';
+        document.getElementById('form-title').textContent = isLogin ? 'Sign Up' : 'Login';
+        toggleLink.innerHTML = isLogin ? 'Already have an account? <span class="text-blue-600 hover:underline">Login</span>' : 'New user? <span class="text-blue-600 hover:underline">Sign Up</span>';
+        
+        authEmail.value = '';
+        authPassword.value = '';
+        authMessage.classList.add('hidden');
+    });
+
+    authModal.addEventListener('click', (e) => {
+        if (e.target.id === 'auth-modal') {
+            e.target.classList.add('hidden');
+        }
+    });
+
+    // Initial load
+    updateAuthStatus(null);
+</script>
+</body>
+</html>

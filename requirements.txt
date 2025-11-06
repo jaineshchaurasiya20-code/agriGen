@@ -1,0 +1,17 @@
+
+fastapi
+uvicorn[standard]
+
+google-genai
+Pillow
+python-multipart
+
+openai
+
+pydantic
+python-dotenv
+
+databases[sqlite]
+SQLAlchemy
+bcrypt
+python-jose[cryptography]
