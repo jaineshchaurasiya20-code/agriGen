@@ -40,10 +40,14 @@ Aaj bhi bahut se kisaan, khaaskar rural areas mein, sahi aur timely agricultural
 [Click here to access the file on Google Drive]
 https://drive.google.com/file/d/1VadJ2_8-Gk-Vo0qWfnPGcK0hhiFGkuzw/view?usp=sharing)
 
+[PPT link]
+https://drive.google.com/file/d/1srMFmjsUZLh5VyRHl50bG9Nrzp9PekKb/view?usp=sharing
+
 
 ### 1. Dependencies Confirm Aur Install Karein
 ```bash
 # Ensure you have the requirements.txt file with all dependencies
 pip install -r requirements.txt
 after installing all the dependencies final run in terminal-> uvicorn app:app --reload
+
 
